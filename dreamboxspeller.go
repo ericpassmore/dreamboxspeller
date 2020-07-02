@@ -7,11 +7,14 @@ import (
   "fmt"
 )
 
+// ############### CONFIG ##########################
 const dictionary="wordsEn.txt"
 const logFileName="dreamboxspeller-error.log"
 const host="localhost"
 const port=8080
+// ############### END CONFIG ######################
 
+// ############### MAIN ############################
 func main() {
   // setup loging and close file at end
   var logFileHandle *os.File = setupLogging()
@@ -19,11 +22,17 @@ func main() {
 
   // build index, a one time event
   speller.Build(getWorkingDirectory() + "/" + dictionary)
+  // search
   var matched []speller.Word = speller.Search("a")
+  // results
   for at:=0; at<len(matched); at++ {
     fmt.Println(matched[at].Raw)
   }
+
+  // start up http service
+  speller.StartHTTP(port)
 }
+
 //############# UTIL FUNCTIONS ################
 // get working directory so we can open dictionary file
 func getWorkingDirectory() string {

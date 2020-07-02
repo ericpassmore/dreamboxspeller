@@ -5,11 +5,16 @@ import ( "os"
   "log"
 )
 
-// cardinality is a-z plus apostrophy
+// ############### CONFIG ##########################
+// bucketSize is chunk size of data (8,32,64)
 const bucketSize = 8
 // size is derived from number of words in file
+// plus one to cover remainder
+// if there were more words this would need to be bigger
 const bitmapSize = (109583/bucketSize)+1
+// ############### END CONFIG #######################
 
+// ############### DATA STRUCTURES ##################
 type Word struct {
   Raw string
   Length int
@@ -46,20 +51,20 @@ type Indexes struct {
   apos [bitmapSize]byte
 }
 
-// ##################### PUBLIC INTERFACE: THE DATA STRUCTURE ######
+// ##################### PUBLIC INTERFACE #######################
 // This is what we use to look things up
-var Dictionary = initIndexes()
+var dictionary = initIndexes()
 
 // build indexes
 func Build(file string) {
-  Dictionary = buildIndex(file)
+  dictionary = buildIndex(file)
 }
 
 func Search(char string) []Word {
   var matched []Word
-  var residents = bytesToLocation(Dictionary.z)
+  var residents = bytesToLocation(dictionary.z)
   for at := 0; at < len(residents); at++ {
-    matched = append(matched,Dictionary.words[residents[at]])
+    matched = append(matched,dictionary.words[residents[at]])
   }
   return matched
 }
@@ -109,6 +114,7 @@ func initIndexes() Indexes {
    return newIndexes
 }
 
+// turns index (int) location into position and shift for bit position
 // need both index by byte and shift for bits
 func byteIndex(index int) (int, int) {
   if index == 0 { return 0,0 }
@@ -119,7 +125,8 @@ func byteIndex(index int) (int, int) {
   return position, shift
 }
 
-// convert byte matches to index positions
+// convert bits (0|1) into index (int) positions
+// each bit represents an index entry
 func bytesToLocation(index [bitmapSize]byte) []int {
   var residents []int
   for i := 0; i < bitmapSize; i++ {
@@ -135,8 +142,8 @@ func bytesToLocation(index [bitmapSize]byte) []int {
   return residents
 }
 
-// this tells us how many byte arrays we need
-// one bytearray index per words
+// scans the dictionary building a-z bitmapped indexes
+//
 func buildIndex(file string) Indexes {
   var theseIndexes = initIndexes()
 
@@ -148,6 +155,7 @@ func buildIndex(file string) Indexes {
   }
   fileScanner := bufio.NewScanner(fileHandle)
   lineCount := 0
+
   // loop over file
   for fileScanner.Scan() {
     word := fileScanner.Text()
@@ -161,6 +169,7 @@ func buildIndex(file string) Indexes {
         index, shift := byteIndex(lineCount)
         // lots of code , and easy to read
         // better then compact, obtuse code #pickyourpoison
+        // index for each a-z char + apostrophy
         switch char {
         case "a":
           theseIndexes.a[index] |= 1 << uint(shift)

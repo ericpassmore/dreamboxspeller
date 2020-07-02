@@ -47,4 +47,4 @@ GOPATH=$(pwd); export GOPATH
 # build stuff
 go build dreamboxspeller.go
 echo "Build Complete"
-echo "run '$ ./dreamboxspeller' and goto http://localhost:8080 "
+echo "run '$ ./dreamboxspeller &' and goto http://localhost:8080 "

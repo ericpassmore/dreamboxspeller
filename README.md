@@ -13,7 +13,7 @@ This is the recommended way, it is simpler
 * `./build.sh`
 
 ## Manual Building
-If you have problems with the scripted build & run
+If you have problems with the scripted build try these steps
 Need to have go installed. If you don't have it download from https://golang.org/dl/
 * make sure go is in your PATH
 * cd into dreamboxspeller director
@@ -22,7 +22,7 @@ Need to have go installed. If you don't have it download from https://golang.org
 
 ## Running
 Runs the program, and goto URL
-* run `$ ./dreamboxspeller`
+* run `$ ./dreamboxspeller &`
 * goto 'http://localhost:8080/'
 Check error log as needed
 * `$ cat dreamboxspeller-error.log`

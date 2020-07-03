@@ -3,21 +3,82 @@ package speller
 import (
   "testing"
   "fmt"
+  "os"
 )
 
-func TestSearchApos(t *testing.T) {
+func setup() {
   // build index, a one time event
   Build("/Users/eric/RandomRepos/dreamboxspeller/wordsEn.txt")
+}
+func shutdown() {
+  fmt.Println("Testing Shutdown***")
+}
 
-  var words = Search("year's","iou")
+func TestMain(m *testing.M) {
+    setup()
+    code := m.Run()
+    shutdown()
+    os.Exit(code)
+}
+
+func TestSearchApos(t *testing.T) {
+  var words = Search("year's",ConsonantsNotInWord("year's"))
   hasYears := false
   for idx := 0; idx < len(words); idx++ {
-    fmt.Println("word is: ", words[idx].Raw )
-    if words[idx].Raw == "year's" { hasYears = true }
+    if words[idx].Raw == "year's" { hasYears = true; break; }
   }
 
   if !hasYears {
     t.Errorf("SearchApos failed to find year's")
+  }
+}
+
+func TestSearchIncomplete(t *testing.T) {
+  var words = Search("years",ConsonantsNotInWord("years"))
+  hasYears := false
+  for idx := 0; idx < len(words); idx++ {
+    if words[idx].Raw == "year's" { hasYears = true; break }
+  }
+
+  if !hasYears {
+    t.Errorf("SearchApos failed to find year's")
+  }
+}
+
+func TestSearchFailed(t *testing.T) {
+  query := []string{"fsiuyfiusyifys","dua",}
+
+  for at := 0 ; at < len(query); at++ {
+    var words = Search(query[at],ConsonantsNotInWord(query[at]))
+    hasQuery := false
+    for idx := 0; idx < len(words); idx++ {
+      if words[idx].Raw == query[at] { hasQuery = true; break }
+    }
+
+    if hasQuery {
+      t.Errorf("SearchFailed found the unfindable %s",query[at])
+    }
+  }
+}
+
+func TestSearchSucceed(t *testing.T) {
+  query := []string{"balloon","aah","ab","a"}
+
+  for at := 0 ; at < len(query); at++ {
+    fmt.Printf("word is: %s, not vowels is %s\n", query[at],ConsonantsNotInWord(query[at]))
+    var words = Search(query[at],VowelsNotInWord(query[at]))
+    hasQuery := false
+    for idx := 0; idx < len(words); idx++ {
+      //fmt.Println("word is: ", words[idx].Raw )
+      if words[idx].Raw == query[at] { hasQuery = true; break }
+    }
+
+    if !hasQuery {
+      for idx := 0; idx < len(words); idx++ {
+        fmt.Println("word is: ", words[idx].Raw )
+      }
+      t.Errorf("SearchSucceed did not find %s",query[at])
+    }
   }
 }
 
@@ -137,6 +198,26 @@ func TestInverseVowels(t *testing.T) {
     case 1:
       if (results != "eou") {
         t.Errorf("InverseVowels did not work in %s: %s, want: %s.", words[i], results, "eou")
+      }
+    default:
+    }
+  }
+}
+
+func TestInverseConsonants(t *testing.T) {
+  var words = []string{ "yugoslavia", "viability", }
+  var results = ""
+  for i := 0; i < len(words); i++ {
+    results = ConsonantsNotInWord(words[i])
+
+    switch i {
+    case 0:
+      if (len(results) != len("bcdfhjkmnpqrtwxz")) {
+        t.Errorf("InverseConsonants did not work in %s: %s, want: %s.", words[i], results, "bcdfhjkmnpqrtwxz")
+      }
+    case 1:
+      if (len(results) != len("cdfghjkmnpqrswxz")) {
+        t.Errorf("InverseConsonants did not work in %s: %s, want: %s.", words[i], results, "cdfghjkmnpqrswxz")
       }
     default:
     }

@@ -136,6 +136,43 @@ func VowelsNotInWord(word string) string {
   return missingVowels
 }
 
+// find distinct list of consonants not in word
+func ConsonantsNotInWord(word string) string {
+  var missingConsonants = ""
+
+  consonants := map[rune]bool {
+    'b' : false, 'c' : false, 'd' : false, 'f' : false, 'g' : false,
+    'h' : false, 'j' : false, 'k' : false, 'l' : false, 'm' : false,
+    'n' : false, 'p' : false, 'q' : false, 'r' : false, 's' : false,
+    't' : false, 'v' : false, 'w' : false, 'x' : false, 'z' : false,
+  }
+
+  for idx := 0; idx < len(word); idx++ {
+    // get current char
+    char := []rune(word)[idx]
+
+    // defense 1: normalize to lower
+    // 2: skip to next if not a letter
+    if (unicode.IsLetter(char)) {
+      // 1
+      char = unicode.ToLower(char)
+      } else {
+        // 2
+        continue
+      }
+
+      consonants[char] = true
+    }
+
+    for letter, exists := range consonants {
+      if !exists {
+        missingConsonants += string(letter)
+      }
+    }
+    return missingConsonants
+
+  }
+
 func IsYAVowle(prev rune, next rune, isLast bool) bool {
   // check previous is not a vowel
   if (prev != emptyRune && prev != a && prev != e && prev != i && prev != o && prev != u) {

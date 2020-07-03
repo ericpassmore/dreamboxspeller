@@ -285,8 +285,6 @@ func initByteArray(isEmpty bool) [bitmapSize]byte {
   // turns index (int) location into position and shift for bit position
   // need both index by byte and shift for bits
   func byteIndex(index int) (int, int) {
-    if index == 0 { return 0,0 }
-    // less one because index starts at zero
     position := index / bucketSize
     // remainder reversed 7 -> 0 .. 0 -> 7
     shift := bucketSize - (index % bucketSize) -1

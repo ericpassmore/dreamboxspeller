@@ -26,3 +26,9 @@ Runs the program, and goto URL
 * goto 'http://localhost:8080/'
 Check error log as needed
 * `$ cat dreamboxspeller-error.log`
+
+## Testing
+Runs test for package. No tests for main.
+* cd into dreamboxspeller director
+* set import path `$ GOPATH=$(pwd); export GOPATH`
+* `$ go test speller`

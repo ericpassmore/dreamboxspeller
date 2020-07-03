@@ -23,7 +23,7 @@ func main() {
   // build index, a one time event
   speller.Build(getWorkingDirectory() + "/" + dictionary)
   // search
-  var matched []speller.Word = speller.Search("a")
+  var matched []speller.Word = speller.Search("gym","x")
   // results
   for at:=0; at<len(matched); at++ {
     fmt.Println(matched[at].Raw)

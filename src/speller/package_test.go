@@ -66,7 +66,7 @@ func TestSearchSucceed(t *testing.T) {
 
   for at := 0 ; at < len(query); at++ {
     fmt.Printf("word is: %s, not vowels is %s\n", query[at],ConsonantsNotInWord(query[at]))
-    var words = Search(query[at],VowelsNotInWord(query[at]))
+    var words = Search(query[at],ConsonantsNotInWord(query[at]))
     hasQuery := false
     for idx := 0; idx < len(words); idx++ {
       //fmt.Println("word is: ", words[idx].Raw )

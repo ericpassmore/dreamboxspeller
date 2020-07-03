@@ -68,6 +68,8 @@ func Search(mustHave string, mustNotHave string) []Word {
   isEmpty := false
   var resultsByteArray [bitmapSize]byte = initByteArray(isEmpty)
 
+  //lots of code, maybe there is a better way to do this
+  // first go code, so forgivness please
   for midx:=0; midx < len(mustHave); midx++ {
     char := []rune(mustHave)[midx]
     switch char {
@@ -129,7 +131,8 @@ func Search(mustHave string, mustNotHave string) []Word {
       log.Println("not expecting to search this rune: ", char)
     }
   }
-
+  //lots of code, maybe there is a better way to do this
+  // first go code, so forgivness please
   for midx:=0; midx < len(mustNotHave); midx++ {
     char := []rune(mustNotHave)[midx]
     switch char {
@@ -246,7 +249,8 @@ func initByteArray(isEmpty bool) [bitmapSize]byte {
   }
 
   // make new indexes fill with 0
-  // lots of code now, easier to read later
+  //lots of code, maybe there is a better way to do this
+  // first go code, so forgivness please
   func initIndexes() Indexes {
     empty := true
     newIndexes := Indexes{

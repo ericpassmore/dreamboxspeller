@@ -6,6 +6,8 @@ import (
   "log"
   "net/http"
   "unicode"
+  "strings"
+  "encoding/json"
 )
 
 // ############### CONSTANTS ##########################
@@ -29,38 +31,75 @@ func StartHTTP(port int) {
   log.Fatal(http.ListenAndServe(endpoint,nil))
 }
 // ###################### END PUBLIC INTERFACE ####################
-type response struct {
-  responseCode int
-  userInput string
-  suggestions string
-  repeating bool
-  missingVowels bool
-  mixedCase bool
-  notFound bool
+type ResponseBody struct {
+  HTTPCode int
+  UserInput string
+  Suggestions []string
+  Repeating bool
+  MissingVowels bool
+  MixedCase bool
+  NotFound bool
 }
 
 // spelling service
 func spelling(w http.ResponseWriter, req *http.Request) {
+  emptyResults := true
+  responseCode := -1
+  matches := []string{}
+
   // get params
   query, ok := req.URL.Query()["q"]
   //optionalOrder, isOrderImportant := req.URL.Query()["orderImportant"]
 
+  // need that query param, return 400 if can't find it
   if !ok || len(query[0]) < 1 {
     log.Println("query param is missing from search spelling request")
     http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
     return
   }
 
-  fmt.Fprintf(w,"%v\n",query[0])
-  if isMixedCase(query[0]) {
-    fmt.Fprintf(w,"failed mixed case\n")
-  } else {
-    fmt.Fprintf(w,"ok\n")
+  // normalize query
+  normalizeSearchTerm := strings.ToLower(query[0])
+  // do the search
+  var words = Search(normalizeSearchTerm,ConsonantsNotInWord(normalizeSearchTerm))
+  // transform the array of struct to array of string
+  for idx := 0; idx < len(words); idx++ {
+    matches = append(matches, words[idx].Raw)
   }
 
-  // not found error
-  if (false) {
+  // check if there are any possible matches
+  // no matches then 404 status
+  // found matches then 200 status
+  if (len(words)>0) {
+    emptyResults = false
+    responseCode = http.StatusOK
+  } else {
+    emptyResults = true
+    responseCode = http.StatusNotFound
+  }
+
+  // populate our response
+  response := ResponseBody {
+    HTTPCode: responseCode,
+    UserInput: query[0],
+    Suggestions: matches,
+    Repeating: false,
+    MissingVowels: false,
+    MixedCase: isMixedCase(query[0]),
+    NotFound: emptyResults,
+  }
+
+  // empty then 404
+  // otherwise 200 and print JSON
+  if (emptyResults) {
     http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+  } else {
+    var jsonData []byte
+    jsonData, err := json.Marshal(response)
+    if err != nil {
+      log.Println(err)
+    }
+    fmt.Fprintf(w,string(jsonData))
   }
 }
 

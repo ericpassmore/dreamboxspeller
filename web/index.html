@@ -2,11 +2,72 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Search</title>
+  <title>DreamBox Speller</title>
   <link rel="stylesheet" href="/main.css">
+  <script src="/jquery-3.5.1.min.js"></script>
 </head>
 <body>
-  <h1>Heading</h1>
-  <p>Greetings From Status</p>
+  <h1>DreamBox Speller</h1>
+  <div class="navbar">
+    <p><a href="/about.html">about</a></p>
+    <p><a href="/userguide.html">user guide</a></p>
+  </div>
+  <div class="highlight-box">
+  <form id="target" action="/spelling">
+    <label for="query">Query:</label><br>
+    <input type="text" id="q" name="q"><br>
+    <input type="submit" value="Go">
+  </form>
+  </div>
+  <div class="tableheader">
+    <p>User Input</p>
+    <p>Results</p>
+    <p>Suggestions</p>
+  </div>
+  <span id="results"></span>
+  <div id="show">
+    <span><span>
+  </div>
+  <!-- bind to form, intercept submit event -->
+  <!-- get the input value if :clear then empty previous results -->
+  <!-- otherwise send request to /spelling HTTP API parse JSON and show -->
+  <script>
+    var resultCount = 0;
+    // change maxResultsToShow if you want to page to show different number of results
+    var maxResultsToShow = 10;
+    $( "#target" ).submit(function( event ) {
+      var query = $( "input" ).first().val()
+      if ( query == ":clear" ) {
+        $( "span#results div.data" ).remove();
+        resultCount = 0;
+      } else {
+        // ajax request expecting JSON
+        $.getJSON( "/spelling?q=".concat(query), function( data ) {
+
+          // clear out last item when too many results
+          // change
+          if ( resultCount > (maxResultsToShow - 1) ) {
+            $( "span#results div.data" ).last().remove();
+            resultCount -= 1;
+          }
+
+          // get data build dom structure prepend to page
+          var userInput = ""; var results = ""; var suggestions = "";
+          $.each( data, function( key, val ) {
+            if (key == "UserInput") { userInput = val; }
+            if (key == "Suggestions") { suggestions = val; }
+            results = "NA";
+          });
+
+          $( "<div/>", {
+            "class": "data",
+            html: "<p>"+userInput+"</p><p>"+results+"</p><p>"+suggestions+"</p>"
+          }).prependTo( "span#results" );
+          resultCount += 1;
+        });
+      }
+      event.preventDefault();
+    });
+  </script>
 </body>
 </html>

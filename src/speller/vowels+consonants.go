@@ -136,6 +136,29 @@ func VowelsNotInWord(word string) string {
   return missingVowels
 }
 
+// looks at a char determin if is a vowel
+func IsVowel(char rune, prev rune, next rune, isLast bool) bool {
+  isVowel := false
+  // mark found
+  switch char {
+  case a:
+    isVowel = true
+  case e:
+    isVowel = true
+  case i:
+    isVowel = true
+  case o:
+    isVowel = true
+  case u:
+    isVowel = true
+  case y:
+  default:
+    // nothing to do
+  }
+
+  return isVowel
+}
+
 // find distinct list of consonants not in word
 func ConsonantsNotInWord(word string) string {
   var missingConsonants = ""

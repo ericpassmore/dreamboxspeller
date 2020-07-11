@@ -4,17 +4,29 @@
   <meta charset="utf-8">
   <title>User Guide</title>
   <link rel="stylesheet" href="/main.css">
+  <link rel="stylesheet" href="/sliders.css">
+  <link rel="icon" href="/favicon-32.png" sizes="32x32">
+  <script src="/jquery-3.5.1.min.js"></script>
+  <script src="/colortheme.js"></script>
 </head>
-<body>
+<body class="dark">
   <h1>User Guide</h1>
   <div class="navbar">
+    <form id="colortheme">
+      Dark Mode<br>
+      <label class="switch">
+        <input type="checkbox" checked>
+        <span class="slider"></span>
+      </label>
+    </form>
     <p><a href="/">Main Form</a></p>
     <p><a href="/about.html">About</a></p>
   </div>
   <h2>Form</h2>
-  <div class="highlight-box">
+  <div class="dark highlight-box">
     <p>Type in a word and hit GO! The last 10 results are appended below.</p>
-    <p>To clear previous results type :clear into the input field and hit go</p>
+    <p>To clear previous results type <strong>:clear</strong> into the input field and hit go</p>
+    <p>To restore default color theme type <strong>:resetcolor</strong> into input field and hit go</p>
   </div>
 </body>
 </html>

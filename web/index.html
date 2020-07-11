@@ -4,15 +4,26 @@
   <meta charset="utf-8">
   <title>DreamBox Speller</title>
   <link rel="stylesheet" href="/main.css">
+  <link rel="stylesheet" href="/sliders.css">
+  <link rel="icon" href="/favicon-32.png" sizes="32x32">
   <script src="/jquery-3.5.1.min.js"></script>
+  <script src="/colortheme.js"></script>
 </head>
-<body>
+<body class="dark">
   <h1>DreamBox Speller</h1>
+
   <div class="navbar">
+    <form id="colortheme">
+      Dark Mode<br>
+      <label class="switch">
+        <input type="checkbox" checked>
+        <span class="slider"></span>
+      </label>
+    </form>
     <p><a href="/about.html">about</a></p>
     <p><a href="/userguide.html">user guide</a></p>
   </div>
-  <div class="highlight-box">
+  <div class="dark highlight-box">
   <form id="target" action="/spelling">
     <label for="query">Query:</label><br>
     <input type="text" id="q" name="q"><br>
@@ -35,37 +46,68 @@
     var resultCount = 0;
     // change maxResultsToShow if you want to page to show different number of results
     var maxResultsToShow = 10;
+    // FORM SCRIPT CODE
     $( "#target" ).submit(function( event ) {
-      var query = $( "input" ).first().val()
-      if ( query == ":clear" ) {
-        $( "span#results div.data" ).remove();
-        resultCount = 0;
-      } else {
+      var query = $( "#target input" ).first().val()
+      // decision tree based on input
+      switch (query) {
+        // COMMAND TO CLEAR
+        case ":clear":
+          $( "span#results div.data" ).remove();
+          resultCount = 0;
+          break;
+        case ":resetcolor":
+        // function defined in colortheme.js
+        // clears storage restores default
+          resetcolor();
+          break;
+        // default is make query to service
+        // get json back, parse it and show it on page
+        default:
         // ajax request expecting JSON
-        $.getJSON( "/spelling?q=".concat(query), function( data ) {
-
+        // define variables needed to build out the page
+        var userInput = ""; var results = ""; var suggestions = "";
+        $.getJSON( "/spelling?q=".concat(query), function() {
+          // first success here
+          // .done() function below handles success case again
+        })
+        // http error handled here, error param is text value of HTTP Error Code
+        .fail(function( jqxhr, textStatus, error ) {
+            results = error
+            userInput = query
+            suggestions = ""
+        })
+        // process 200 response parse JSON results
+        .done(function(data) {
+          $.each( data, function( key, val ) {
+            if (key == "UserInput") { userInput = val; }
+            if (key == "Suggestions") { suggestions = val; }
+            if (key == "HTTPCode") { httpCode = val; }
+            results = "Success";
+          });
+        })
+        // always update dom document
+        .always(function() {
+          // if the query is empty string do not update the UI
+          if (query.length > 0) {
           // clear out last item when too many results
-          // change
           if ( resultCount > (maxResultsToShow - 1) ) {
             $( "span#results div.data" ).last().remove();
             resultCount -= 1;
           }
-
-          // get data build dom structure prepend to page
-          var userInput = ""; var results = ""; var suggestions = "";
-          $.each( data, function( key, val ) {
-            if (key == "UserInput") { userInput = val; }
-            if (key == "Suggestions") { suggestions = val; }
-            results = "NA";
-          });
-
+          // add new item to top
           $( "<div/>", {
             "class": "data",
             html: "<p>"+userInput+"</p><p>"+results+"</p><p>"+suggestions+"</p>"
           }).prependTo( "span#results" );
+          // track how many results
           resultCount += 1;
+        }
         });
       }
+      // clear user input
+      $( "#target" ).trigger("reset");
+      // Do not take action that HTML provides
       event.preventDefault();
     });
   </script>

@@ -3,6 +3,8 @@ package speller
 import ( "os"
   "bufio"
   "log"
+  "unicode"
+  "errors"
 )
 
 // ############### CONFIG ##########################
@@ -15,13 +17,11 @@ const bitmapSize = (109583/bucketSize)+1
 const emptyByte byte = 0
 // ############### END CONFIG #######################
 
-// ############### DATA STRUCTURES ##################
-type Word struct {
-  Raw string
-  Length int
-}
+// ############### INTERNAL DATA STRUCTURES ##################
+// This is what we use to look things up
+var dictionary = initIndexes()
 
-type Indexes struct {
+type indexes struct {
   words []Word
   a [bitmapSize]byte
   b [bitmapSize]byte
@@ -54,8 +54,25 @@ type Indexes struct {
 }
 
 // ##################### PUBLIC INTERFACE #######################
-// This is what we use to look things up
-var dictionary = initIndexes()
+// normalized structure for all indexed words
+// supports comparison
+type Letter struct {
+  Count int
+  Position int
+  isVowel bool
+}
+
+// Data Structure for words
+// Raw value is self explainitory
+// WordMap is bag of Letters see struct above
+// Length is the number of chars in the words
+type Word struct {
+  Raw string
+  WordMap map[rune]Letter
+  Length int
+}
+
+
 
 // build indexes
 func Build(file string) {
@@ -201,6 +218,71 @@ func Search(mustHave string, mustNotHave string) []Word {
   }
   return matched
 }
+
+// create map of letters
+// this tracks the position and checks if it is a vowel
+func CreateLetterMap(userInput string) (map[rune]Letter, error) {
+  // tracks if there are any valid characters
+  // if none it is an error
+  hasAnyValidChars := false
+  prevChar := emptyRune
+  nextChar := emptyRune
+
+  letterMap := make(map[rune]Letter)
+  letterCount := 1
+
+  // loop through each char
+  for idx := 0; idx < len(userInput); idx++ {
+    char := []rune(userInput)[idx]
+    // get next char, if no last char set to emptyRune
+    if (idx+1 < len(userInput)) {
+      nextChar = []rune(userInput)[idx+1]
+    } else {
+      nextChar = emptyRune
+    }
+    // if there continuous charaters, increment count, and skip to next
+    // no need to set prevChar since the chars are the same
+    if (char == nextChar) {
+      letterCount++
+      continue;
+    }
+
+    // check valid char
+    if (unicode.IsLetter(char) || char == '\'') {
+      hasAnyValidChars = true
+      // handle apostrophy
+      if ( char == '\'' ) {
+        letterMap[char] = Letter {
+          Count: letterCount,
+          Position: idx,
+          isVowel: false,
+        }
+      // handle a-z letters
+      } else {
+        char = unicode.ToLower(char)
+        isLast := (idx == len(userInput)-1)
+        // isVowel needs all those params to detect y as vowel
+        // IsVowel function in vowels+consonants.go
+        letterMap[char] = Letter {
+          Count: letterCount,
+          Position: idx,
+          isVowel: IsVowel(char, prevChar, nextChar, isLast),
+        }
+      }
+    }
+    // we can only get here when char != nextChar
+    // so set prevChar and letterCount appropriately
+    prevChar = char
+    letterCount = 1
+  }
+
+  // our only error
+  if !hasAnyValidChars {
+    return letterMap, errors.New("No valid Characters in user input: "+userInput)
+  }
+
+  return letterMap, nil
+}
 // ###################### END PUBLIC INTERFACE ####################
 
 // and together, joined is an argument to support recursion
@@ -251,9 +333,9 @@ func initByteArray(isEmpty bool) [bitmapSize]byte {
   // make new indexes fill with 0
   //lots of code, maybe there is a better way to do this
   // first go code, so forgivness please
-  func initIndexes() Indexes {
+  func initIndexes() indexes {
     empty := true
-    newIndexes := Indexes{
+    newIndexes := indexes{
       a: initByteArray(empty),
       b: initByteArray(empty),
       c: initByteArray(empty),
@@ -314,7 +396,7 @@ func initByteArray(isEmpty bool) [bitmapSize]byte {
 
   // scans the dictionary building a-z bitmapped indexes
   //
-  func buildIndex(file string) Indexes {
+  func buildIndex(file string) indexes {
     var theseIndexes = initIndexes()
     var length = 0
     // emptyRune defined in vowels.go

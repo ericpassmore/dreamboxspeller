@@ -1,38 +1,63 @@
 body {
-  background: #496b75;
-  color: rgba(0,0,0,0.87);
   font-family: Roboto, Helvetica, Arial, sans-serif;
   padding: 0;
   margin: 74px;
 }
 
+.light body { background: #cccccc; color: rgba(33,33,33,0.87); }
+.light h3 { color: white; }
+.light h2 { color: #e4861b; }
+.light h1 { color: rgba(33,33,33,0.6); }
+.light a { background: #ee8811; color: black; }
+.light div { border-color: #181818; }
+.light #colortheme {
+  color: black;
+  background: #dddddd;
+  border-style: solid;
+  border-width: 1px;
+  border-color: #aaaaaa;
+}
+.light.highlight-box {
+  background: #dddddd;
+  border-style: solid;
+  border-width: 1px;
+  border-color: #aaaaaa;
+}
+.dark  { background: #496b75; color: rgba(0,0,0,0.87); }
+.dark h3 { color: black; }
+.dark h2 { color: #e4861b; }
+.dark h1 { color: rgba(0,0,0,0.6); }
+.dark a { background: #ee8811; color: black; }
+.dark div { border-color: #181818; }
+.dark #colortheme {  background: #f9f9f9; }
+.dark.highlight-box { background: #f9f9f9; }
+
 .highlight-box {
-  background: #f9f9f9;
   padding: 32px 24px;
   margin: 16px;
   border-radius: 3px;
   max-width: 300px;
 }
-.highlight-box input {
-  margin-top: 8px;
-}
+
 .navbar {
   padding: 0px 0px;
   margin: 16px;
-  max-width: 348px;
+  max-width: 600px;
 }
-.sidebyside { float: left; }
-h3 { color: black; font-weight: bold; font-size: 18px; margin: 16px 0 0 0; }
-h2 { color: #e4861b; font-weight: bold; font-size: 22px; margin: 8px 0 0 0; }
-h1 { font-size: 30px; font-weight: 300; color: rgba(0,0,0,0.6); margin: 0 0 16px;}
+.navbar p { max-width: 348px; }
+
+input {
+  margin-top: 8px;
+}
+h3 { font-weight: bold; font-size: 18px; margin: 16px 0 0 0; }
+h2 { font-weight: bold; font-size: 22px; margin: 8px 0 0 0; }
+h1 { font-size: 30px; font-weight: 300; margin: 0 0 16px;}
 p { line-height: 140%; margin: 8px 0 8px 0; font-size: 18px; }
 a {
   display: block;
   text-align: center;
-  background: #ee8811;
   text-transform: uppercase;
   text-decoration: none;
-  color: black;
   padding-top: 4px;
   padding-bottom: 4px;
   padding-left: 16px;
@@ -61,5 +86,11 @@ a {
   border-width: 2px;
   border-radius: 4px;
 }
-.data p { display: inline; padding-right: 8px;  }
-.tableheader p { display: inline;  }
+.data p { display: inline; padding-right: 20px;  }
+.tableheader p { display: inline; padding-right: 20px; }
+#colortheme {
+  display: block;
+  padding: 16px 12px;
+  border-radius: 3px;
+  float: right;
+}

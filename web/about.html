@@ -4,21 +4,32 @@
   <meta charset="utf-8">
   <title>About</title>
   <link rel="stylesheet" href="/main.css">
+  <link rel="stylesheet" href="/sliders.css">
+  <link rel="icon" href="/favicon-32.png" sizes="32x32">
+  <script src="/jquery-3.5.1.min.js"></script>
+  <script src="/colortheme.js"></script>
 </head>
-<body>
+<body class="dark">
   <h1>About</h1>
   <div class="navbar">
+    <form id="colortheme">
+      Dark Mode<br>
+      <label class="switch">
+        <input type="checkbox" checked>
+        <span class="slider"></span>
+      </label>
+    </form>
     <p><a href="/">Main Form</a></p>
     <p><a href="/userguide.html">user guide</a></p>
   </div>
   <h2>Author</h2>
-  <div class="highlight-box">
+  <div class="dark highlight-box">
     <p>Name: Eric Passmore</p>
     <p>Mobile: 415.370.2410</p>
     <p><a href="https://linkedin.com/in/passmore">passmore</a><p>
   </div>
   <h2>DreamBox Speller</h2>
-  <div class="highlight-box">
+  <div class="dark highlight-box">
     <p>Built with go version go1.14.4 darwin/amd64 and JQuery 3.5.1
       If you are seeing this assume you have followed
       README.md instructions to build and run</p>

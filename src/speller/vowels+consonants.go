@@ -160,14 +160,15 @@ func IsVowel(char rune, prev rune, next rune, isLast bool) bool {
 }
 
 // find distinct list of consonants not in word
-func ConsonantsNotInWord(word string) string {
+func ConsonantsNotInWord(word string, relaxY bool) string {
   var missingConsonants = ""
 
   consonants := map[rune]bool {
     'b' : false, 'c' : false, 'd' : false, 'f' : false, 'g' : false,
     'h' : false, 'j' : false, 'k' : false, 'l' : false, 'm' : false,
     'n' : false, 'p' : false, 'q' : false, 'r' : false, 's' : false,
-    't' : false, 'v' : false, 'w' : false, 'x' : false, 'z' : false,
+    't' : false, 'v' : false, 'w' : false, 'x' : false, 'y' : false,
+    'z' : false,
   }
 
   for idx := 0; idx < len(word); idx++ {
@@ -189,7 +190,16 @@ func ConsonantsNotInWord(word string) string {
 
     for letter, exists := range consonants {
       if !exists {
-        missingConsonants += string(letter)
+        // mostly 'y' is a vowel and sometimes is a consonant
+        // setting relaxY ignores the different uses of 'y'
+        // check if this is 'y' only add 'y' if relaxY is false
+        if (letter != 'y') {
+          missingConsonants += string(letter)
+        } else {
+          if !relaxY {
+            missingConsonants += string(letter)
+          }
+        }
       }
     }
     return missingConsonants

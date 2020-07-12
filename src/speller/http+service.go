@@ -55,12 +55,12 @@ func spelling(w http.ResponseWriter, req *http.Request) {
   // set content type, applies to all functions
   w.Header().Set("Content-Type", defaultContentType)
 
-  // tracks state first two booleans look at results
-  // http status defaults to bad, updated later
-  // matches are the raw suggestions
+  // exactMatch assume false
+  // relaxY removed filter by 'Y' consonant , returns more suggestions
+  // suggestions are possible spellings
   // words is the data struct returned from Search
   exactMatch := false
-  responseCode := http.StatusBadRequest
+  relaxY := false
   suggestions := []string{}
   var words = []Word{}
 
@@ -72,9 +72,13 @@ func spelling(w http.ResponseWriter, req *http.Request) {
   // need that query param, log error, return 400 if can't find it
   if paramsOK != nil {
     log.Println(paramsOK)
-    responseCode = http.StatusBadRequest
-    http.Error(w, http.StatusText(responseCode), responseCode)
+    http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
     return
+  }
+
+  // optional params, move from string to bool
+  if (params["relaxy"] == "true") {
+    relaxY = true
   }
 
   // convert query value to ordered collection of letters
@@ -87,8 +91,7 @@ func spelling(w http.ResponseWriter, req *http.Request) {
   // return immediattly if bad user input
   if queryValueOK != nil {
     log.Println(queryValueOK)
-    responseCode = http.StatusBadRequest
-    http.Error(w, http.StatusText(responseCode), responseCode)
+    http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
     return
   }
 
@@ -100,7 +103,9 @@ func spelling(w http.ResponseWriter, req *http.Request) {
   lowerCaseQuery := strings.ToLower(params["q"])
   // do the search, ConsonantsNotInWord func in vowels+consonants.go
   // Search(mustHave, mustNotHave)
-  words = Search(mustHaveLetters,ConsonantsNotInWord(mustHaveLetters))
+  // relaxY enables/disables filtering by 'y' consonants
+  // set relaxY true to get more results for things like 'yellow'
+  words = Search(mustHaveLetters,ConsonantsNotInWord(mustHaveLetters, relaxY))
   // loop through looking for exact match
   // when query is mixed case considered a misspelling, exact match not possible
   // if exact match end loop and clear out suggestions
@@ -129,7 +134,6 @@ func spelling(w http.ResponseWriter, req *http.Request) {
   // 200 if exact match or we have suggestions
   // otherwise 404 not found
   if (exactMatch || len(suggestions)>0) {
-    responseCode = http.StatusOK
     // convert structure to JSON
     var jsonData []byte
     jsonData, err := json.Marshal(response)
@@ -139,8 +143,7 @@ func spelling(w http.ResponseWriter, req *http.Request) {
       fmt.Fprintf(w,string(jsonData))
     }
   } else {
-    responseCode = http.StatusNotFound
-    http.Error(w, http.StatusText(responseCode), responseCode)
+    http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
   }
 
 }
@@ -172,6 +175,14 @@ func getParams(req *http.Request) (map[string]string, error) {
     return params, errors.New("query param is missing from search spelling request")
   } else {
     params["q"] = values[0]
+  }
+
+  // optional params
+  _ , relaxyOK := req.URL.Query()["relaxy"]
+  if !relaxyOK {
+    params["relaxy"] = "false"
+  } else {
+    params["relaxy"] = "true"
   }
 
   // no errors

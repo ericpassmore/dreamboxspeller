@@ -56,9 +56,9 @@ type indexes struct {
 // ##################### PUBLIC INTERFACE #######################
 // normalized structure for all indexed words
 // supports comparison
-type Letter struct {
-  Count int
-  Position int
+type letter struct {
+  count int
+  position int
   isVowel bool
 }
 
@@ -68,7 +68,7 @@ type Letter struct {
 // Length is the number of chars in the words
 type Word struct {
   Raw string
-  LetterMap map[rune]Letter
+  LetterMap map[rune]letter
   Length int
 }
 
@@ -219,23 +219,27 @@ func Search(mustHave string, mustNotHave string) []Word {
 }
 
 // create map of letters
-// this tracks the position and checks if it is a vowel
-func CreateLetterMap(userInput string) (map[rune]Letter, error) {
+// this tracks the first position of letter
+// the max count of letters
+// and if it is a vowel
+func CreateLetterMap(word string) (map[rune]letter, error) {
   // tracks if there are any valid characters
   // if none it is an error
   hasAnyValidChars := false
   prevChar := emptyRune
   nextChar := emptyRune
 
-  letterMap := make(map[rune]Letter)
+  letterMap := make(map[rune]letter)
   letterCount := 1
 
   // loop through each char
-  for idx := 0; idx < len(userInput); idx++ {
-    char := []rune(userInput)[idx]
+  for idx := 0; idx < len(word); idx++ {
+    char := []rune(word)[idx]
+    // track position of letting in word
+    firstPosition := idx
     // get next char, if no last char set to emptyRune
-    if (idx+1 < len(userInput)) {
-      nextChar = []rune(userInput)[idx+1]
+    if (idx+1 < len(word)) {
+      nextChar = []rune(word)[idx+1]
     } else {
       nextChar = emptyRune
     }
@@ -243,28 +247,48 @@ func CreateLetterMap(userInput string) (map[rune]Letter, error) {
     // no need to set prevChar since the chars are the same
     if (char == nextChar) {
       letterCount++
-      continue;
+      continue
     }
 
     // check valid char
     if (unicode.IsLetter(char) || char == '\'') {
       hasAnyValidChars = true
+
+      // maintain first position
+      // first check if entry exists in map
+      // if it exists and lower it is still first, update firstPosition
+      if letterMap[char].position > 0 {
+        if firstPosition > letterMap[char].position {
+          firstPosition = letterMap[char].position
+        }
+      }
+
+      // track max letter count
+      // first check to see if entry exist
+      // if map has bigger count , use it
+      maxLetterCount := letterCount
+      if letterMap[char].count >= 0 {
+        if maxLetterCount < letterMap[char].count {
+          maxLetterCount = letterMap[char].count
+        }
+      }
+
       // handle apostrophy
       if ( char == '\'' ) {
-        letterMap[char] = Letter {
-          Count: letterCount,
-          Position: idx,
+        letterMap[char] = letter {
+          count: maxLetterCount,
+          position: firstPosition,
           isVowel: false,
         }
       // handle a-z letters
       } else {
         char = unicode.ToLower(char)
-        isLast := (idx == len(userInput)-1)
+        isLast := (idx == len(word)-1)
         // isVowel needs all those params to detect y as vowel
         // IsVowel function in vowels+consonants.go
-        letterMap[char] = Letter {
-          Count: letterCount,
-          Position: idx,
+        letterMap[char] = letter {
+          count: maxLetterCount,
+          position: firstPosition,
           isVowel: IsVowel(char, prevChar, nextChar, isLast),
         }
       }
@@ -277,7 +301,7 @@ func CreateLetterMap(userInput string) (map[rune]Letter, error) {
 
   // our only error
   if !hasAnyValidChars {
-    return letterMap, errors.New("No valid Characters in user input: "+userInput)
+    return letterMap, errors.New("No valid Characters in user input: "+word)
   }
 
   return letterMap, nil

@@ -48,19 +48,23 @@ type ResponseBody struct {
 // example http://host:port/spelling?q=myword
 // returns 400 - bad user input or missing query
 //         404 - no results no suggestions
-//         200 - exact match or suggestions
-// 400 retunrs emptry body
-// 404 or 200 returns JSON matcing ResponseBody struct
+//         200 - exact match or have suggestions
+// 400 or 404 retunrs body with name human readable error name
+// 200 returns JSON matcing ResponseBody struct
 func spelling(w http.ResponseWriter, req *http.Request) {
   // set content type, applies to all functions
   w.Header().Set("Content-Type", defaultContentType)
 
   // exactMatch assume false
   // relaxY removed filter by 'Y' consonant , returns more suggestions
+  // missingVowel tracks one reason matches fail
+  // repeating tracks another reason matches fail, user input has too many letters
   // suggestions are possible spellings
   // words is the data struct returned from Search
   exactMatch := false
   relaxY := false
+  missingVowel := false
+  repeatingLetters := false
   suggestions := []string{}
   var words = []Word{}
 
@@ -82,8 +86,6 @@ func spelling(w http.ResponseWriter, req *http.Request) {
   }
 
   // convert query value to ordered collection of letters
-  // return error 404 if query value does not have any valid charaters
-  // on error log message
   // note CreateLetterMap function found in index+search.go
   queryAsLetterMap, queryValueOK := CreateLetterMap(params["q"])
 
@@ -104,7 +106,8 @@ func spelling(w http.ResponseWriter, req *http.Request) {
   // do the search, ConsonantsNotInWord func in vowels+consonants.go
   // Search(mustHave, mustNotHave)
   // relaxY enables/disables filtering by 'y' consonants
-  // set relaxY true to get more results for things like 'yellow'
+  // set relaxY true to get more results
+  // example of relaxY searching for 'ellow' suggests 'yellow'
   words = Search(mustHaveLetters,ConsonantsNotInWord(mustHaveLetters, relaxY))
   // loop through looking for exact match
   // when query is mixed case considered a misspelling, exact match not possible
@@ -114,10 +117,34 @@ func spelling(w http.ResponseWriter, req *http.Request) {
     if !isMixedCase && lowerCaseQuery == words[idx].Raw {
       exactMatch = true
       suggestions = []string{}
-      // success, all done get out of this loop
+      // success, all done move to the exits
       break
     }
-    suggestions = append(suggestions, words[idx].Raw)
+
+    // little debug
+    if (words[idx].Raw == "balloon" || words[idx].Raw == "bicycle") {
+      for l, details := range words[idx].LetterMap {
+        log.Printf("Word %s letter %s position %d count %d",words[idx].Raw,string(l),details.position, details.count)
+      }
+    }
+
+
+    // loop through our user input and dictionary word letter by letter
+    // as we go track, numbers indicate returned paramater pos in func call
+    // 1. count of missing vowels
+    // 2. max distance between letter's position in word
+    // 3. user input contiguous letters exceeding dictionary word
+    missingVowelCount, orderOffset, repeating := compareLetterMaps(queryAsLetterMap, words[idx].LetterMap )
+    // user input has a letter with higher contiguous count
+    // across all dictionary words
+    // clearly a case of repeating letting in user input
+    // example consider "balllooon"
+    repeatingLetters = repeating && repeatingLetters
+
+    // too many missing vowels, cuttoff of two
+    if (missingVowelCount < 2 && orderOffset < 3) {
+      suggestions = append(suggestions, words[idx].Raw)
+    }
   }
 
   // populate our response
@@ -125,8 +152,8 @@ func spelling(w http.ResponseWriter, req *http.Request) {
     ExactMatch: exactMatch,
     UserInput: params["q"],
     Suggestions: suggestions,
-    Repeating: false,
-    MissingVowels: false,
+    Repeating: repeatingLetters,
+    MissingVowels: missingVowel,
     MixedCase: isMixedCase,
   }
 
@@ -185,13 +212,51 @@ func getParams(req *http.Request) (map[string]string, error) {
     params["relaxy"] = "true"
   }
 
+  // optional params
+  _ , optionalOrderOK := req.URL.Query()["ordernotimportant"]
+  if !optionalOrderOK {
+    params["ordernotimportant"] = "false"
+  } else {
+    params["ordernotimportant"] = "true"
+  }
+
   // no errors
   return params, nil
 }
 
+// compare two letterMaps
+// letterMap has position, count, and isVowel for each letter
+// we use this information to compare two words and see if they
+// are close enough to be considered a suggestion
+// userInput with too many missing vowels and letters out of position
+// example of out of position consider "spam" to "maps"
+func compareLetterMaps(userInput map[rune]letter, dictionaryWord map[rune]letter) (missingVowelCount int, maxOrderOffset int, repeatingLetters bool) {
+  missingVowelCount = 0
+  maxOrderOffset = 0
+  repeatingLetters = false
+
+  for letter, dictionaryWordDetails := range dictionaryWord {
+    if userInput[letter].count > 0 {
+      thisOffset := dictionaryWordDetails.position - userInput[letter].position
+      // change to abs offset
+      if (thisOffset < 0) { thisOffset = thisOffset * -1 }
+      if ( thisOffset > maxOrderOffset ) { maxOrderOffset = thisOffset }
+      if (userInput[letter].count > dictionaryWordDetails.count) {
+        repeatingLetters = true
+      }
+    } else {
+      // check if non existing letter is a vowel
+      if dictionaryWordDetails.isVowel {
+        missingVowelCount++
+      }
+    }
+  }
+  return missingVowelCount, maxOrderOffset, repeatingLetters
+}
+
 // build a bag of letters from map kyes
 // order of letters in map is not guarenteed
-func createString(letterMap map[rune]Letter) string {
+func createString(letterMap map[rune]letter) string {
   letterBag := ""
   // key is rune
   for key, _ := range letterMap {

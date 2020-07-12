@@ -46,7 +46,7 @@
     var resultCount = 0;
     // change maxResultsToShow if you want to page to show different number of results
     var maxResultsToShow = 10;
-    // FORM SCRIPT CODE
+    // bind code to form on submit event
     $( "#target" ).submit(function( event ) {
       var query = $( "#target input" ).first().val()
       // decision tree based on input
@@ -56,6 +56,7 @@
           $( "span#results div.data" ).remove();
           resultCount = 0;
           break;
+        // COMMAND to RESET COLOR
         case ":resetcolor":
         // function defined in colortheme.js
         // clears storage restores default
@@ -67,6 +68,7 @@
         // ajax request expecting JSON
         // define variables needed to build out the page
         var userInput = ""; var results = ""; var suggestions = "";
+        var exactMatch = false;
         $.getJSON( "/spelling?q=".concat(query), function() {
           // first success here
           // .done() function below handles success case again
@@ -80,10 +82,28 @@
         // process 200 response parse JSON results
         .done(function(data) {
           $.each( data, function( key, val ) {
-            if (key == "UserInput") { userInput = val; }
-            if (key == "Suggestions") { suggestions = val; }
-            if (key == "HTTPCode") { httpCode = val; }
-            results = "Success";
+            switch (key) {
+              case "UserInput":
+                userInput = val; break;
+              case "Suggestions":
+                suggestions = val; break;
+              case "ExactMatch":
+                exactMatch = val
+                if (exactMatch) {
+                  results = "Correct"
+                } else {
+                  results = "Incorrect"
+                }
+                break;
+              case "Repeating":
+                break;
+              case "MissingVowels":
+                break;
+              case "MixedCase":
+                break;
+              default:
+                break;
+            }
           });
         })
         // always update dom document

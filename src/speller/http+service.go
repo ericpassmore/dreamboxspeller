@@ -8,12 +8,12 @@ import (
   "unicode"
   "encoding/json"
   "errors"
+  "strings"
 )
 
 // ############### CONSTANTS ##########################
 const doctype="<!DOCTYPE html>"
-const defaultContentType="Content-Type: application/json"
-const defaultCharset="Charset=utf-8"
+const defaultContentType="application/json; charset=utf-8"
 
 // ##################### PUBLIC INTERFACE #######################
 func StartHTTP(port int) {
@@ -33,32 +33,35 @@ func StartHTTP(port int) {
 // returned as JSON in body on 200
 // non 200 returns no body
 type ResponseBody struct {
-  HTTPCode int
+  ExactMatch bool
   UserInput string
   Suggestions []string
   Repeating bool
   MissingVowels bool
   MixedCase bool
-  NotFound bool
 }
 // ###################### END PUBLIC INTERFACE ####################
 
 
 // spelling service
-// gets the params from the URL
-// uses the user input to do a search
-// then looks for matches
-// finally returns results
+// takes user input from url query param and looks up spelling suggestions
+// example http://host:port/spelling?q=myword
+// returns 400 - bad user input or missing query
+//         404 - no results no suggestions
+//         200 - exact match or suggestions
+// 400 retunrs emptry body
+// 404 or 200 returns JSON matcing ResponseBody struct
 func spelling(w http.ResponseWriter, req *http.Request) {
+  // set content type, applies to all functions
+  w.Header().Set("Content-Type", defaultContentType)
 
   // tracks state first two booleans look at results
   // http status defaults to bad, updated later
   // matches are the raw suggestions
   // words is the data struct returned from Search
-  emptyResults := true
-  badUserInput := true
+  exactMatch := false
   responseCode := http.StatusBadRequest
-  matches := []string{}
+  suggestions := []string{}
   var words = []Word{}
 
   // get params pass in reference to http.Request
@@ -72,10 +75,7 @@ func spelling(w http.ResponseWriter, req *http.Request) {
     responseCode = http.StatusBadRequest
     http.Error(w, http.StatusText(responseCode), responseCode)
     return
-  } else {
-    badUserInput = false
   }
-
 
   // convert query value to ordered collection of letters
   // return error 404 if query value does not have any valid charaters
@@ -90,61 +90,65 @@ func spelling(w http.ResponseWriter, req *http.Request) {
     responseCode = http.StatusBadRequest
     http.Error(w, http.StatusText(responseCode), responseCode)
     return
-  } else {
-    badUserInput = false
   }
 
-
-  // normalize query
-  normalizeSearchTerm := stringFromMap(queryAsLetterMap)
+  // pull out all the letters in the query
+  mustHaveLetters := createString(queryAsLetterMap)
+  // check if mixed case
+  isMixedCase := isMixedCase(params["q"])
+  // normalize to make matching easy
+  lowerCaseQuery := strings.ToLower(params["q"])
   // do the search, ConsonantsNotInWord func in vowels+consonants.go
-  words = Search(normalizeSearchTerm,ConsonantsNotInWord(normalizeSearchTerm))
-  // transform the array of struct to array of string
+  // Search(mustHave, mustNotHave)
+  words = Search(mustHaveLetters,ConsonantsNotInWord(mustHaveLetters))
+  // loop through looking for exact match
+  // when query is mixed case considered a misspelling, exact match not possible
+  // if exact match end loop and clear out suggestions
+  // otherwise build list of matching suggestions
   for idx := 0; idx < len(words); idx++ {
-    matches = append(matches, words[idx].Raw)
-  }
-
-
-  // check if there are any possible matches
-  // no matches then 404 status
-  // found matches then 200 status
-  // remember emptyResults defaults true
-  if (len(words)>0) {
-    emptyResults = false
-    responseCode = http.StatusOK
+    if !isMixedCase && lowerCaseQuery == words[idx].Raw {
+      exactMatch = true
+      suggestions = []string{}
+      // success, all done get out of this loop
+      break
+    }
+    suggestions = append(suggestions, words[idx].Raw)
   }
 
   // populate our response
   response := ResponseBody {
-    HTTPCode: responseCode,
+    ExactMatch: exactMatch,
     UserInput: params["q"],
-    Suggestions: matches,
+    Suggestions: suggestions,
     Repeating: false,
     MissingVowels: false,
-    MixedCase: !badUserInput && isMixedCase(params["q"]),
-    NotFound: emptyResults,
+    MixedCase: isMixedCase,
   }
 
-  // convert structure to JSON
-  var jsonData []byte
-  jsonData, err := json.Marshal(response)
-  if err != nil {
-    log.Println(err)
+  // print JSON only when 200
+  // 200 if exact match or we have suggestions
+  // otherwise 404 not found
+  if (exactMatch || len(suggestions)>0) {
+    responseCode = http.StatusOK
+    // convert structure to JSON
+    var jsonData []byte
+    jsonData, err := json.Marshal(response)
+    if err != nil {
+      log.Println(err)
+    } else {
+      fmt.Fprintf(w,string(jsonData))
+    }
   } else {
-    fmt.Fprintf(w,string(jsonData))
-  }
-
-  // print JSON in all of the following cases
-  // empty then 404
-  // badUserInput then 400
-  // otherwise 200
-  if (emptyResults || badUserInput ) {
+    responseCode = http.StatusNotFound
     http.Error(w, http.StatusText(responseCode), responseCode)
   }
+
 }
 
-// hello handler
+// simple handler can be used to see if service is up
 func hello(w http.ResponseWriter, req *http.Request) {
+  // set content type, applies to all functions
+  w.Header().Set("Content-Type", "text/html; charset: utf-8")
   fmt.Fprintf(w,"%v\n",doctype)
   fmt.Fprintf(w,"<html>\n")
   fmt.Fprintf(w,"<body>\n")
@@ -176,10 +180,10 @@ func getParams(req *http.Request) (map[string]string, error) {
 
 // build a bag of letters from map kyes
 // order of letters in map is not guarenteed
-func stringFromMap(wordMap map[rune]Letter) string {
+func createString(letterMap map[rune]Letter) string {
   letterBag := ""
   // key is rune
-  for key, _ := range wordMap {
+  for key, _ := range letterMap {
     letterBag += string(key)
   }
   return letterBag

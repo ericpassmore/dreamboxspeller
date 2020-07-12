@@ -34,7 +34,24 @@
       If you are seeing this assume you have followed
       README.md instructions to build and run</p>
     <p>Avalible HTTP API</p>
-    <p><a href="/spelling?q=example">Speller</a> </p>
+    <p>Spelling API <a href="/spelling?q=example">Speller</a>
+      Spelling method possible status codes
+      <ul>
+        <li>400 - bad user input or missing query, empty body</li>
+        <li>404 - no results no suggestions, json returned in body</li>
+        <li>200 - exact match or suggestions, json returned in body</li>
+      </ul>
+      Spelling method JSON format</br>
+      <code>{</br>
+        ExactMatch [true/false],</br>
+        UserInput string,</br>
+        Suggestions []string,</br>
+        Repeating [true/false],</br>
+        MissingVowels [true/false],</br>
+        MixedCase [true/false],</br>
+      }</code>
+    </p>
+    <p>Simple test see if service is up <a href="/hello">Hello</a> </p>
   </div>
 </body>
 </html>

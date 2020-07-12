@@ -50,7 +50,7 @@ type indexes struct {
   y [bitmapSize]byte
   z [bitmapSize]byte
   apos [bitmapSize]byte
-  yvowel [bitmapSize]byte
+  yconsonant [bitmapSize]byte
 }
 
 // ##################### PUBLIC INTERFACE #######################
@@ -68,10 +68,9 @@ type Letter struct {
 // Length is the number of chars in the words
 type Word struct {
   Raw string
-  WordMap map[rune]Letter
+  LetterMap map[rune]Letter
   Length int
 }
-
 
 
 // build indexes
@@ -202,7 +201,7 @@ func Search(mustHave string, mustNotHave string) []Word {
     case 'x':
       andNot(dictionary.x, resultsByteArray, &resultsByteArray)
     case 'y':
-      andNot(dictionary.y, resultsByteArray, &resultsByteArray)
+      andNot(dictionary.yconsonant, resultsByteArray, &resultsByteArray)
     case 'z':
       andNot(dictionary.z, resultsByteArray, &resultsByteArray)
     case '\'':
@@ -363,7 +362,7 @@ func initByteArray(isEmpty bool) [bitmapSize]byte {
       y: initByteArray(empty),
       z: initByteArray(empty),
       apos: initByteArray(empty),
-      yvowel: initByteArray(empty),
+      yconsonant: initByteArray(empty),
     }
     return newIndexes
   }
@@ -399,7 +398,7 @@ func initByteArray(isEmpty bool) [bitmapSize]byte {
   func buildIndex(file string) indexes {
     var theseIndexes = initIndexes()
     var length = 0
-    // emptyRune defined in vowels.go
+    // emptyRune defined in vowels+consonants.go
     var previous = emptyRune
     var next = emptyRune
 
@@ -417,12 +416,21 @@ func initByteArray(isEmpty bool) [bitmapSize]byte {
       word := fileScanner.Text()
       // calc length once
       length = len(word)
+      // create map of words
+      // if error log error, and skip to next word
+      letterMap, error := CreateLetterMap(word)
+      if error != nil {
+        log.Println(error)
+        // add one we start at zero
+        log.Printf("error occured on line %d while indexing dict\n", lineCount+1)
+        continue
+      }
       // add our word to index
-      theseIndexes.words = append(theseIndexes.words, Word{Raw:word, Length: length})
+      theseIndexes.words = append(theseIndexes.words,
+        Word{Raw:word, LetterMap: letterMap, Length: length})
       // init when indexing new word
       previous = emptyRune
       next = emptyRune
-
 
       // loop over each rune and add to indexes
       for i := 0; i < length; i++ {
@@ -492,8 +500,8 @@ func initByteArray(isEmpty bool) [bitmapSize]byte {
           case 'y':
             theseIndexes.y[index] |= 1 << uint(shift)
             isLast := (i == length-1)
-            if IsYAVowle(previous, next, isLast) {
-              theseIndexes.yvowel[index] |= 1 << uint(shift)
+            if !IsYAVowle(previous, next, isLast) {
+              theseIndexes.yconsonant[index] |= 1 << uint(shift)
             }
           case 'z':
             theseIndexes.z[index] |= 1 << uint(shift)

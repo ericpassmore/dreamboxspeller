@@ -31,4 +31,6 @@ Check error log as needed
 Runs test for package. No tests for main.
 * cd into dreamboxspeller director
 * set import path `$ GOPATH=$(pwd); export GOPATH`
+* run service `$ ./dreamboxspeller &`
 * `$ go test speller`
+* shutdown service `$ kill pid`

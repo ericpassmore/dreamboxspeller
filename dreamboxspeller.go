@@ -33,7 +33,7 @@ func getWorkingDirectory() string {
   if err != nil {
     log.Println("Error getting working directory", err)
     // attempt to recover
-    path = "../../"
+    path = "../.."
   }
   return path
 }

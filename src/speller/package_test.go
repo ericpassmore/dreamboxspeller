@@ -4,11 +4,15 @@ import (
   "testing"
   "fmt"
   "os"
+  "net/http"
+  "io/ioutil"
+  "encoding/json"
 )
 
 func setup() {
+  path, _ := os.Getwd()
   // build index, a one time event
-  Build("/Users/eric/RandomRepos/dreamboxspeller/wordsEn.txt")
+  Build(path + "/../../wordsEn.txt")
 }
 func shutdown() {
   fmt.Println("Testing Shutdown***")
@@ -22,7 +26,8 @@ func TestMain(m *testing.M) {
 }
 
 func TestSearchApos(t *testing.T) {
-  var words = Search("year's",ConsonantsNotInWord("year's"))
+  relaxY := false
+  var words = Search("year's",ConsonantsNotInWord("year's",relaxY))
   hasYears := false
   for idx := 0; idx < len(words); idx++ {
     if words[idx].Raw == "year's" { hasYears = true; break; }
@@ -34,7 +39,8 @@ func TestSearchApos(t *testing.T) {
 }
 
 func TestSearchIncomplete(t *testing.T) {
-  var words = Search("years",ConsonantsNotInWord("years"))
+  relaxY := false
+  var words = Search("years",ConsonantsNotInWord("years",relaxY))
   hasYears := false
   for idx := 0; idx < len(words); idx++ {
     if words[idx].Raw == "year's" { hasYears = true; break }
@@ -46,10 +52,11 @@ func TestSearchIncomplete(t *testing.T) {
 }
 
 func TestSearchFailed(t *testing.T) {
+  relaxY := false
   query := []string{"fsiuyfiusyifys","dua",}
 
   for at := 0 ; at < len(query); at++ {
-    var words = Search(query[at],ConsonantsNotInWord(query[at]))
+    var words = Search(query[at],ConsonantsNotInWord(query[at],relaxY))
     hasQuery := false
     for idx := 0; idx < len(words); idx++ {
       if words[idx].Raw == query[at] { hasQuery = true; break }
@@ -62,11 +69,12 @@ func TestSearchFailed(t *testing.T) {
 }
 
 func TestSearchSucceed(t *testing.T) {
+  relaxY := false
   query := []string{"balloon","aah","ab","a"}
 
   for at := 0 ; at < len(query); at++ {
-    fmt.Printf("word is: %s, not vowels is %s\n", query[at],ConsonantsNotInWord(query[at]))
-    var words = Search(query[at],ConsonantsNotInWord(query[at]))
+    fmt.Printf("word is: %s, not vowels is %s\n", query[at],ConsonantsNotInWord(query[at],relaxY))
+    var words = Search(query[at],ConsonantsNotInWord(query[at],relaxY))
     hasQuery := false
     for idx := 0; idx < len(words); idx++ {
       //fmt.Println("word is: ", words[idx].Raw )
@@ -205,10 +213,11 @@ func TestInverseVowels(t *testing.T) {
 }
 
 func TestInverseConsonants(t *testing.T) {
+  relaxY := false
   var words = []string{ "yugoslavia", "viability", }
   var results = ""
   for i := 0; i < len(words); i++ {
-    results = ConsonantsNotInWord(words[i])
+    results = ConsonantsNotInWord(words[i],relaxY)
 
     switch i {
     case 0:
@@ -222,4 +231,245 @@ func TestInverseConsonants(t *testing.T) {
     default:
     }
   }
+}
+
+func TestServiceUp(t *testing.T) {
+  url := "http://localhost:8080/hello"
+  resp, err := http.Get(url)
+  if err != nil {
+    t.Errorf("is service up? %s failed with %s", url, err)
+  }
+
+  defer resp.Body.Close()
+
+  if resp.StatusCode == http.StatusOK {
+    bodyBytes, err := ioutil.ReadAll(resp.Body)
+    if err != nil {
+      t.Errorf("error reading http response %s",err)
+    }
+    bodyString := string(bodyBytes)
+    if len(bodyString) <= 10 {
+      t.Errorf("is service up? response too short from %s", url)
+    }
+  } else {
+    t.Errorf("non 2xx code from %s",url)
+  }
+}
+
+func TestExactMatch(t *testing.T) {
+  url := "http://localhost:8080/spelling?q=year%27s"
+  resp, err := http.Get(url)
+  if err != nil {
+    t.Errorf("is service up? %s failed", url)
+  }
+
+  defer resp.Body.Close()
+
+  var response ResponseBody
+
+  if resp.StatusCode == http.StatusOK {
+    bodyBytes, err := ioutil.ReadAll(resp.Body)
+    if err != nil {
+      t.Errorf("error reading http response %s",err)
+    }
+    json.Unmarshal(bodyBytes, &response)
+
+    if (!response.ExactMatch) {
+      t.Errorf("Failed Exact Match for url %s", url)
+    }
+
+  } else {
+    t.Errorf("non 2xx code from %s",url)
+  }
+}
+
+func TestNotExactMatch(t *testing.T) {
+  url := "http://localhost:8080/spelling?q=yer"
+  resp, err := http.Get(url)
+  if err != nil {
+    t.Errorf("is service up? %s failed", url)
+  }
+
+  defer resp.Body.Close()
+
+  var response ResponseBody
+
+  if resp.StatusCode == http.StatusOK {
+    bodyBytes, err := ioutil.ReadAll(resp.Body)
+    if err != nil {
+      t.Errorf("error reading http response %s",err)
+    }
+    json.Unmarshal(bodyBytes, &response)
+
+    if (response.ExactMatch) {
+      t.Errorf("Failed Did Not Expect Exact Match for url %s", url)
+    }
+
+  } else {
+    t.Errorf("non 2xx code from %s",url)
+  }
+}
+
+func TestRepeatingLetter(t *testing.T) {
+  url := "http://localhost:8080/spelling?q=balllooon"
+  resp, err := http.Get(url)
+  if err != nil {
+    t.Errorf("is service up? %s failed", url)
+  }
+
+  defer resp.Body.Close()
+
+  var response ResponseBody
+
+  if resp.StatusCode == http.StatusOK {
+    bodyBytes, err := ioutil.ReadAll(resp.Body)
+    if err != nil {
+      t.Errorf("error reading http response %s",err)
+    }
+    json.Unmarshal(bodyBytes, &response)
+
+    if (!response.Repeating) {
+      t.Errorf("Expected Repeating Found Non-Repeating for url %s", url)
+    }
+
+  } else {
+    t.Errorf("non 2xx code from %s",url)
+  }
+}
+
+func TestNonRepeatingLetter(t *testing.T) {
+  url := "http://localhost:8080/spelling?q=balon"
+  resp, err := http.Get(url)
+  if err != nil {
+    t.Errorf("is service up? %s failed", url)
+  }
+
+  defer resp.Body.Close()
+
+  var response ResponseBody
+
+  if resp.StatusCode == http.StatusOK {
+    bodyBytes, err := ioutil.ReadAll(resp.Body)
+    if err != nil {
+      t.Errorf("error reading http response %s",err)
+    }
+    json.Unmarshal(bodyBytes, &response)
+
+    if (response.Repeating) {
+      t.Errorf("Expected Non-Repeating Found Repeating for url %s", url)
+    }
+
+  } else {
+    t.Errorf("non 2xx code from %s",url)
+  }
+}
+
+func TestNonMixedCase(t *testing.T) {
+  url := "http://localhost:8080/spelling?q=balloon"
+  resp, err := http.Get(url)
+  if err != nil {
+    t.Errorf("is service up? %s failed", url)
+  }
+
+  defer resp.Body.Close()
+
+  var response ResponseBody
+
+  if resp.StatusCode == http.StatusOK {
+    bodyBytes, err := ioutil.ReadAll(resp.Body)
+    if err != nil {
+      t.Errorf("error reading http response %s",err)
+    }
+    json.Unmarshal(bodyBytes, &response)
+
+    if (response.MixedCase) {
+      t.Errorf("Expected Non-MixedCase and found otherwise for url %s", url)
+    }
+
+  } else {
+    t.Errorf("non 2xx code from %s",url)
+  }
+}
+
+func TestMissingVowels(t *testing.T) {
+  url := "http://localhost:8080/spelling?q=pp"
+  resp, err := http.Get(url)
+  if err != nil {
+    t.Errorf("is service up? %s failed", url)
+  }
+
+  defer resp.Body.Close()
+
+  var response ResponseBody
+
+  if resp.StatusCode == http.StatusOK {
+    bodyBytes, err := ioutil.ReadAll(resp.Body)
+    if err != nil {
+      t.Errorf("error reading http response %s",err)
+    }
+    json.Unmarshal(bodyBytes, &response)
+
+    if (!response.MissingVowels) {
+      t.Errorf("Expected MissingVowels and found otherwise for url %s", url)
+    }
+
+  } else {
+    t.Errorf("non 2xx code from %s",url)
+  }
+}
+
+func TestRelaxY(t *testing.T) {
+  relaxYCount := 0
+  hardYCount := 0
+
+  url := "http://localhost:8080/spelling?q=ast&relaxy"
+
+  resp, err := http.Get(url)
+  if err != nil {
+    t.Errorf("is service up? %s failed", url)
+  }
+
+  defer resp.Body.Close()
+
+  var response ResponseBody
+
+  if resp.StatusCode == http.StatusOK {
+    bodyBytes, err := ioutil.ReadAll(resp.Body)
+    if err != nil {
+      t.Errorf("error reading http response %s",err)
+    }
+    json.Unmarshal(bodyBytes, &response)
+
+    relaxYCount = len(response.Suggestions)
+
+  } else {
+    t.Errorf("non 2xx code from %s",url)
+  }
+
+  url = "http://localhost:8080/spelling?q=ast"
+
+  resp, err = http.Get(url)
+  if err != nil {
+    t.Errorf("is service up? %s failed", url)
+  }
+
+  defer resp.Body.Close()
+
+  if resp.StatusCode == http.StatusOK {
+    bodyBytes, err := ioutil.ReadAll(resp.Body)
+    if err != nil {
+      t.Errorf("error reading http response %s",err)
+    }
+    json.Unmarshal(bodyBytes, &response)
+
+    hardYCount = len(response.Suggestions)
+
+  } else {
+    t.Errorf("non 2xx code from %s",url)
+  }
+
+  if relaxYCount <= hardYCount {
+    t.Errorf("Expected relaxY to have more suggestions for url http://localhost:8080/spelling?q=ast&relaxy")
+  }
+
 }

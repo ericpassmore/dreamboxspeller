@@ -14,6 +14,9 @@ import (
 // ############### CONSTANTS ##########################
 const doctype="<!DOCTYPE html>"
 const defaultContentType="application/json; charset=utf-8"
+// tollerance used for internal score calulation, bigger values returns more results
+const missingVowelTollerance = 1
+const orderOffsetTollerance = 2
 
 // ##################### PUBLIC INTERFACE #######################
 func StartHTTP(port int) {
@@ -42,6 +45,7 @@ type ResponseBody struct {
 }
 // ###################### END PUBLIC INTERFACE ####################
 
+var debug = false
 
 // spelling service
 // takes user input from url query param and looks up spelling suggestions
@@ -57,14 +61,18 @@ func spelling(w http.ResponseWriter, req *http.Request) {
 
   // exactMatch assume false
   // relaxY removed filter by 'Y' consonant , returns more suggestions
+  // orderNotImportant ignore letter position during compare, returns more suggestions
+  // first tracks the very first word returned from search
   // missingVowel tracks one reason matches fail
   // repeating tracks another reason matches fail, user input has too many letters
   // suggestions are possible spellings
   // words is the data struct returned from Search
   exactMatch := false
   relaxY := false
-  missingVowel := false
-  repeatingLetters := false
+  orderNotImportant := false
+  first := true
+  allWordsHaveMissingVowels := false
+  allWordsHaveRepeatingLetters := false
   suggestions := []string{}
   var words = []Word{}
 
@@ -75,6 +83,7 @@ func spelling(w http.ResponseWriter, req *http.Request) {
 
   // need that query param, log error, return 400 if can't find it
   if paramsOK != nil {
+    debug = false
     log.Println(paramsOK)
     http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
     return
@@ -84,6 +93,10 @@ func spelling(w http.ResponseWriter, req *http.Request) {
   if (params["relaxy"] == "true") {
     relaxY = true
   }
+  if (params["ordernotimportant"] == "true") {
+    orderNotImportant = true
+  }
+  if (params["debug"] == "true" ) { debug = true }
 
   // convert query value to ordered collection of letters
   // note CreateLetterMap function found in index+search.go
@@ -92,6 +105,7 @@ func spelling(w http.ResponseWriter, req *http.Request) {
   // 400 response if nothing retured
   // return immediattly if bad user input
   if queryValueOK != nil {
+    debug = false
     log.Println(queryValueOK)
     http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
     return
@@ -121,30 +135,39 @@ func spelling(w http.ResponseWriter, req *http.Request) {
       break
     }
 
-    // little debug
-    if (words[idx].Raw == "balloon" || words[idx].Raw == "bicycle") {
-      for l, details := range words[idx].LetterMap {
-        log.Printf("Word %s letter %s position %d count %d",words[idx].Raw,string(l),details.position, details.count)
-      }
-    }
-
+    if (debug) { log.Printf("comparing userinput is %s dictionary word is %s ",lowerCaseQuery, words[idx].Raw) }
 
     // loop through our user input and dictionary word letter by letter
     // as we go track, numbers indicate returned paramater pos in func call
     // 1. count of missing vowels
     // 2. max distance between letter's position in word
     // 3. user input contiguous letters exceeding dictionary word
-    missingVowelCount, orderOffset, repeating := compareLetterMaps(queryAsLetterMap, words[idx].LetterMap )
-    // user input has a letter with higher contiguous count
-    // across all dictionary words
-    // clearly a case of repeating letting in user input
-    // example consider "balllooon"
-    repeatingLetters = repeating && repeatingLetters
+    isValidSuggestion, hasMissingVowel, hasRepeatingLetters := compareLetterMaps(queryAsLetterMap, words[idx].LetterMap, orderNotImportant )
 
+    if (debug ) {
+      if isValidSuggestion {
+        log.Println("Is Valid Suggestion ")
+      } else {
+        log.Println("Is NOT Valid Suggestion")
+      }
+    }
     // too many missing vowels, cuttoff of two
-    if (missingVowelCount < 2 && orderOffset < 3) {
+    if (isValidSuggestion) {
+      // user input has a letter with higher contiguous count
+      // across all dictionary words
+      // clearly a case of repeating letting in user input
+      // example consider "balllooon"
+      if (debug && hasMissingVowel) {log.Printf(" Has Missing Vowels ")}
+      if (debug && hasRepeatingLetters) {log.Printf(" Has Repeating Letters ")}
+      if debug { log.Println(" - end") }
+      allWordsHaveRepeatingLetters = (allWordsHaveRepeatingLetters || first) && hasRepeatingLetters
+      allWordsHaveMissingVowels = (allWordsHaveMissingVowels || first) && hasMissingVowel
+      first = false
+
       suggestions = append(suggestions, words[idx].Raw)
     }
+
+    if debug { log.Println("********************") }
   }
 
   // populate our response
@@ -152,8 +175,8 @@ func spelling(w http.ResponseWriter, req *http.Request) {
     ExactMatch: exactMatch,
     UserInput: params["q"],
     Suggestions: suggestions,
-    Repeating: repeatingLetters,
-    MissingVowels: missingVowel,
+    Repeating: allWordsHaveRepeatingLetters,
+    MissingVowels: allWordsHaveMissingVowels,
     MixedCase: isMixedCase,
   }
 
@@ -172,6 +195,8 @@ func spelling(w http.ResponseWriter, req *http.Request) {
   } else {
     http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
   }
+
+  debug = false
 
 }
 
@@ -220,6 +245,14 @@ func getParams(req *http.Request) (map[string]string, error) {
     params["ordernotimportant"] = "true"
   }
 
+  // debug
+  _ , debugOK := req.URL.Query()["debug"]
+  if !debugOK {
+    params["debug"] = "false"
+  } else {
+    params["debug"] = "true"
+  }
+
   // no errors
   return params, nil
 }
@@ -230,28 +263,72 @@ func getParams(req *http.Request) (map[string]string, error) {
 // are close enough to be considered a suggestion
 // userInput with too many missing vowels and letters out of position
 // example of out of position consider "spam" to "maps"
-func compareLetterMaps(userInput map[rune]letter, dictionaryWord map[rune]letter) (missingVowelCount int, maxOrderOffset int, repeatingLetters bool) {
-  missingVowelCount = 0
-  maxOrderOffset = 0
-  repeatingLetters = false
+// when isOrderNotImportant is set letter maps are compared as a bag
+func compareLetterMaps(userInput map[rune]letter, dictionaryWord map[rune]letter, orderNotImportant bool) (isValidSuggestion bool, hasMissingVowel bool, hasRepeatingLetters bool) {
+  // default return values
+  hasRepeatingLetters = false
+  isValidSuggestion = false
+  // next three are inputs to determin if it is a legit suggestion
+  missingVowelCount := 0
+  maxOrderOffset := 0
+  orderOffsetFirstConsonant := 0
+  // start with a big values and then track to smallest as we iterate
+  minPositionFirstConsonant := len(userInput)
 
+  // loop over letters in dictionary word
   for letter, dictionaryWordDetails := range dictionaryWord {
+    // letter exist in user input?
     if userInput[letter].count > 0 {
+      // calc positional difference in letters
       thisOffset := dictionaryWordDetails.position - userInput[letter].position
       // change to abs offset
       if (thisOffset < 0) { thisOffset = thisOffset * -1 }
       if ( thisOffset > maxOrderOffset ) { maxOrderOffset = thisOffset }
-      if (userInput[letter].count > dictionaryWordDetails.count) {
-        repeatingLetters = true
+      // track positional difference in first consonant, this is weighted higher
+      if ( !userInput[letter].isVowel && (minPositionFirstConsonant > dictionaryWordDetails.position) ) {
+        minPositionFirstConsonant = dictionaryWordDetails.position
+        orderOffsetFirstConsonant = thisOffset
+      }
+      // look for repeating letters, this is returned to user as a rational for no-match
+      if (userInput[letter].count > dictionaryWordDetails.count && userInput[letter].count > 1 ) {
+        hasRepeatingLetters = true
       }
     } else {
+      if debug { log.Printf("missing letter %s \n",string(letter)) }
       // check if non existing letter is a vowel
       if dictionaryWordDetails.isVowel {
+        if debug { log.Println(" .. And its a vowel") }
         missingVowelCount++
       }
     }
   }
-  return missingVowelCount, maxOrderOffset, repeatingLetters
+
+  // ***** LAST THREE IF STMT CALC SCORE *******
+  // missing vowels withing tollerance
+  if (missingVowelCount <= missingVowelTollerance ) {
+    isValidSuggestion = true
+  } else {
+    if debug { log.Printf("Is Missing Vowels") }
+    isValidSuggestion = false
+  }
+  // positional compare within tollerance and we care about order
+  if ( (maxOrderOffset <= orderOffsetTollerance) || orderNotImportant ) {
+    // and with true to track across all conditions
+    isValidSuggestion = isValidSuggestion && true
+  } else {
+    if debug { log.Printf("Max offset too high,  out of position") }
+    isValidSuggestion = false
+  }
+  // first consonant within tollerance, tollerance is reasonable, and we care about order
+  if ((orderOffsetFirstConsonant <= (orderOffsetTollerance -1) && (orderOffsetTollerance -1) >= 0) || orderNotImportant) {
+    // and with true to track across all conditions
+    isValidSuggestion = isValidSuggestion && true
+  } else {
+    if debug { log.Printf("First Consonant out of position") }
+    isValidSuggestion = false
+  }
+
+  return isValidSuggestion, missingVowelCount>0, hasRepeatingLetters
 }
 
 // build a bag of letters from map kyes

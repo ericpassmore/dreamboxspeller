@@ -152,6 +152,7 @@ func IsVowel(char rune, prev rune, next rune, isLast bool) bool {
   case u:
     isVowel = true
   case y:
+    isVowel = IsYAVowle(prev, next, isLast)
   default:
     // nothing to do
   }

@@ -23,17 +23,22 @@
     <p><a href="/about.html">about</a></p>
     <p><a href="/userguide.html">user guide</a></p>
   </div>
-  <div class="dark highlight-box">
+  <div class="dark highlight-box" id="mainform">
   <form id="target" action="/spelling">
     <label for="query">Query:</label><br>
     <input type="text" id="q" name="q"><br>
+    <input type="checkbox" id="relaxy" name="relaxy">
+    <label for="relaxy"> Relax Y Constraint</label><br>
+    <input type="checkbox" id="ordernotimportant" name="ordernotimportant">
+    <label for="vehicle2"> Order Not Important</label><br>
     <input type="submit" value="Go">
   </form>
   </div>
   <div class="tableheader">
     <p>User Input</p>
     <p>Results</p>
-    <p>Suggestions</p>
+    <p id="suggestions">Suggestions</p>
+    <p>Reasons</p>
   </div>
   <span id="results"></span>
   <div id="show">
@@ -48,7 +53,17 @@
     var maxResultsToShow = 10;
     // bind code to form on submit event
     $( "#target" ).submit(function( event ) {
-      var query = $( "#target input" ).first().val()
+      // get user input from form
+      var query = $( "#target input" ).first().val();
+      // get relaxy option
+      var options = "";
+      if ($( '#relaxy' ).is(":checked")) {
+        options = options.concat("&relaxy");
+      }
+      // get order not important option
+      if ($( '#ordernotimportant' ).is(":checked")) {
+        options = options.concat("&ordernotimportant");
+      }
       // decision tree based on input
       switch (query) {
         // COMMAND TO CLEAR
@@ -69,7 +84,8 @@
         // define variables needed to build out the page
         var userInput = ""; var results = ""; var suggestions = "";
         var exactMatch = false;
-        $.getJSON( "/spelling?q=".concat(query), function() {
+        var repeating = ""; var missingVowels = ""; var mixedCase = "";
+        $.getJSON( "/spelling?q=".concat(query).concat(options), function() {
           // first success here
           // .done() function below handles success case again
         })
@@ -96,10 +112,19 @@
                 }
                 break;
               case "Repeating":
+                if (val && !exactMatch) {
+                  repeating = "Repeating Letters; "
+                } else { repeating = "" }
                 break;
               case "MissingVowels":
+              if (val && !exactMatch) {
+                missingVowels = "Missing Vowels; "
+              } else { missingVowels = "" }
                 break;
               case "MixedCase":
+              if (val && !exactMatch) {
+                mixedCase = "Mixed Case;"
+              } else { mixedCase = ""}
                 break;
               default:
                 break;
@@ -118,7 +143,9 @@
           // add new item to top
           $( "<div/>", {
             "class": "data",
-            html: "<p>"+userInput+"</p><p>"+results+"</p><p>"+suggestions+"</p>"
+            html: "<p>"+userInput+"</p><p>"+results+"</p>"
+            +"<p id=\"suggestions\">"+suggestions+"</p>"
+            +"<p>"+repeating+missingVowels+mixedCase+"</p>"
           }).prependTo( "span#results" );
           // track how many results
           resultCount += 1;

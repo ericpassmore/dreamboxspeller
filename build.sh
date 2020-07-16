@@ -42,9 +42,15 @@ then
   # return status from func
   exit $?
 fi
+DATE=$(date)
+SUBFILE="http+service.go"
+mv src/speller/${SUBFILE} /tmp
+sed "s/##DATE##/$DATE/" /tmp/${SUBFILE} > src/speller/${SUBFILE}
 # set path for imports
 GOPATH=$(pwd); export GOPATH
 # build stuff
 go build dreamboxspeller.go
+rm src/speller/${SUBFILE}
+mv /tmp/${SUBFILE} src/speller
 echo "Build Complete"
 echo "run '$ ./dreamboxspeller &' and goto http://localhost:8080 "

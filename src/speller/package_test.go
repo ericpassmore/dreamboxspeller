@@ -473,3 +473,81 @@ func TestRelaxY(t *testing.T) {
   }
 
 }
+
+func TestNoMatch(t *testing.T) {
+  url := "http://localhost:8080/spelling?q=Dua"
+  resp, err := http.Get(url)
+  if err != nil {
+    t.Errorf("is service up? %s failed", url)
+  }
+
+  defer resp.Body.Close()
+
+  if resp.StatusCode != http.StatusNotFound {
+    t.Errorf("non 404 code from %s",url)
+  }
+}
+
+func TestNoMatchTwo(t *testing.T) {
+  url := "http://localhost:8080/spelling?q=fsiuyfiusyifys"
+  resp, err := http.Get(url)
+  if err != nil {
+    t.Errorf("is service up? %s failed", url)
+  }
+
+  defer resp.Body.Close()
+
+  if resp.StatusCode != http.StatusNotFound {
+    t.Errorf("non 404 code from %s",url)
+  }
+}
+
+func TestSuggestion(t *testing.T) {
+  url := "http://localhost:8080/spelling?q=BallooN"
+  resp, err := http.Get(url)
+  if err != nil {
+    t.Errorf("is service up? %s failed", url)
+  }
+
+  defer resp.Body.Close()
+
+  var response ResponseBody
+
+  if resp.StatusCode == http.StatusOK {
+    bodyBytes, err := ioutil.ReadAll(resp.Body)
+    if err != nil {
+      t.Errorf("error reading http response %s",err)
+    }
+    json.Unmarshal(bodyBytes, &response)
+
+    if (!response.MixedCase) {
+      t.Errorf("Expected MixedCase and found otherwise for url %s", url)
+    }
+
+    // abalone,balloon
+    matchA := false; matchB := false; othermatches := false;
+    for at := 0; at < len(response.Suggestions); at++ {
+      if (response.Suggestions[at] == "abalone" ) {
+        matchA = true
+      }
+      if (response.Suggestions[at] == "balloon" ) {
+        matchB = true
+      }
+      if !(response.Suggestions[at] == "abalone" || response.Suggestions[at] == "balloon") {
+        othermatches = true
+      }
+    }
+    if (!matchA) {
+      t.Errorf("expecting abalone in suggestions, not found\n")
+    }
+    if (!matchB) {
+      t.Errorf("expecting balloon in suggestions, not found\n")
+    }
+    if (othermatches) {
+      t.Errorf("expecting only abalone and balloon found more %s\n",response.Suggestions)
+    }
+
+  } else {
+    t.Errorf("non 2xx code from %s",url)
+  }
+}

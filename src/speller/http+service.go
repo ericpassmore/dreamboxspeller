@@ -76,6 +76,7 @@ func spelling(w http.ResponseWriter, req *http.Request) {
   suggestions := []string{}
   var words = []Word{}
 
+  // ************************ GET HTTP PARAMS ***************************
   // get params pass in reference to http.Request
   // must have "q" param for the query example: params["q"]
   params, paramsOK := getParams(req)
@@ -111,6 +112,7 @@ func spelling(w http.ResponseWriter, req *http.Request) {
     return
   }
 
+  // ******************* PERFORM SEARCH *******************************
   // pull out all the letters in the query
   mustHaveLetters := createString(queryAsLetterMap)
   // check if mixed case
@@ -123,6 +125,8 @@ func spelling(w http.ResponseWriter, req *http.Request) {
   // set relaxY true to get more results
   // example of relaxY searching for 'ellow' suggests 'yellow'
   words = Search(mustHaveLetters,ConsonantsNotInWord(mustHaveLetters, relaxY))
+
+  // ******************** FILTER DOWN TO VALID SUGGESTIONS *******************
   // loop through looking for exact match
   // when query is mixed case considered a misspelling, exact match not possible
   // if exact match end loop and clear out suggestions
@@ -170,6 +174,7 @@ func spelling(w http.ResponseWriter, req *http.Request) {
     if debug { log.Println("********************") }
   }
 
+  // ******************* SET JSON RESPONSE AND RETURN **********************
   // populate our response
   response := ResponseBody {
     ExactMatch: exactMatch,
@@ -209,6 +214,7 @@ func hello(w http.ResponseWriter, req *http.Request) {
   fmt.Fprintf(w,"<body>\n")
   fmt.Fprintf(w,"<h1>My First Heading</h1>\n")
   fmt.Fprintf(w,"<p>Greetings</p>\n")
+  fmt.Fprintf(w,"<p>Last Build ##DATE## via build script</p>\n")
   fmt.Fprintf(w,"</body>\n")
   fmt.Fprintf(w,"</html>\n")
 }

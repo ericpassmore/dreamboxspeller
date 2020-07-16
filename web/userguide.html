@@ -28,5 +28,24 @@
     <p>To clear previous results type <strong>:clear</strong> into the input field and hit go</p>
     <p>To restore default color theme type <strong>:resetcolor</strong> into input field and hit go</p>
   </div>
+  <h2>Options</h2>
+  <div class="dark highlight-box">
+    <p><strong>Relax Y</strong>. Y is mostly a vowel, sometimes a consonant, and sometimes something in between.
+      By default the service will not show words with Y consonants unless they are in the user's input.
+      Selecting the <strong>Relax Y</strong> option relaxes this constraint and shows suggestions with Y regardless of the user input having a Y
+      Try this out with example of "ellow" with and without the option. </p>
+    <p><strong>Order Not Important</strong> When looking for spelling suggestions is the order of letters of important?
+      By default order is important. For example a user input of "spam" returns no results.
+      Selecting <strong>Order Not Important</strong> will return more results because the
+       service will look through the dictionary for matching letters regardless of order.
+       Try this option on with the user input of "spam" and you will see more suggestions. For example "maps"</p>
+      <p><strong>Debug</strong> this option is not avalible via the web interface. We assume the web user does not have access to the filesytem and the log file.
+      To use this option add "&debug" to the end of the spelling url. Example <code>http://localhost:8080/spelling?q=example&debug</code></p>
+  </div>
+  <h2>Dark Mode</h2>
+  <div class="dark highlight-box">
+    <p>Toggle switch to change colors between light and dark modes. Choice is preserved by saving to browser's local storage.
+       For this reason the <strong>:resetcolor</strong> command is provided to clear local storage setting, and reset the user interface to default settings.</p>
+  </div>
 </body>
 </html>

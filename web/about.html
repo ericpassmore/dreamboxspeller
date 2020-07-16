@@ -50,6 +50,14 @@
         MissingVowels [true/false],</br>
         MixedCase [true/false],</br>
       }</code>
+    </br>
+      This url method has three parameters, see the user guide to understand how to use the parameters. All parameters apply for the duration of the request. They do not persist past the request.
+      <ul>
+        <li><strong>q</strong> the query parameter the user inputed word</li>
+        <li><strong>relaxy</strong> instructs service to relax the constraints on y consonants and return more suggestions</li>
+        <li><strong>ordernotimportant</strong> instructs service to return more suggestions by ignoring the order of letters</li>
+        <li><strong>debug</strong> instructs service to log details to dreamboxspeller-errror.log </li>
+      </ul>
     </p>
     <p>Simple test see if service is up <a href="/hello">Hello</a> </p>
   </div>
